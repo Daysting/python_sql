@@ -2,85 +2,67 @@
 # CIS261
 # Python SQL
 
-def create_connection(db_path: str = 'example.db'):
-    """Create a SQLite database connection.
+import sqlite3
 
-    Args:
-        db_path: Path to the SQLite database file. Use ':memory:' for an in-memory database.
+# Connect to the database
+conn = sqlite3.connect('phone.db')
+cursor = conn.cursor()
 
-    Returns:
-        sqlite3.Connection: A connection object to the database.
+def create_table():
+    """Create the phone table based on the SQL statement."""
+    sql = """
+    CREATE TABLE phone (
+        phone_id INT,
+        country_code INT NOT NULL,
+        phone_number INT NOT NULL,
+        phone_type VARCHAR(12),
+        PRIMARY KEY(phone_id)
+    );
     """
-    import sqlite3
-    connection = sqlite3.connect(db_path)
-    return connection
+    cursor.execute(sql)
+    conn.commit()
+    print("Table 'phone' created successfully.")
 
-def create_table(connection):
-    cursor = connection.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS users
-                      (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)''')
-    connection.commit()
+def select_phones():
+    """Select phone_number from phone where country_code = 'US'."""
+    sql = """
+    SELECT phone_number
+    FROM phone
+    WHERE country_code = ?
+    """
+    cursor.execute(sql, ("US",))
+    results = cursor.fetchall()
+    print("Selected phone numbers:")
+    for row in results:
+        print(row[0])
 
-def select_us_numbers(connection):
-    cursor = connection.cursor()
-    cursor.execute('SELECT * FROM users')
-    return cursor.fetchall()
+def update_phones():
+    """Update phone_type from 'CELLULAR' to 'MOBILE'."""
+    sql = """
+    UPDATE phone
+    SET phone_type = ?
+    WHERE phone_type = ?
+    """
+    cursor.execute(sql, ("MOBILE", "CELLULAR"))
+    conn.commit()
+    print("Updated phone types from 'CELLULAR' to 'MOBILE'.")
 
-def update_phone_types(connection):
-    cursor = connection.cursor()
-    cursor.execute('ALTER TABLE users ADD COLUMN phone_type TEXT')
-    connection.commit() 
+def delete_phones():
+    """Delete rows where country_code = 'XX'."""
+    sql = """
+    DELETE FROM phone
+    WHERE country_code = ?
+    """
+    cursor.execute(sql, ("XX",))
+    conn.commit()
+    print("Deleted rows where country_code = 'XX'.")
 
-def delete_xx_records(connection):
-    cursor = connection.cursor()
-    cursor.execute("DELETE FROM users WHERE name LIKE 'XX%'")
-    connection.commit()
+def drop_table():
+    """Drop the phone table."""
+    sql = "DROP TABLE phone"
+    cursor.execute(sql)
+    conn.commit()
+    print("Table 'phone' dropped successfully.")
 
-def drop_phone_table(connection):
-    cursor = connection.cursor()
-    cursor.execute('ALTER TABLE users DROP COLUMN phone_type')
-    connection.commit()
-
-def main():
-    # create a connection and ensure the table exists
-    connection = create_connection()
-    create_table(connection)
-
-    # add some sample data (clean slate each run)
-    cursor = connection.cursor()
-    cursor.execute("DELETE FROM users")
-    cursor.execute("INSERT INTO users (name, age) VALUES ('Alice', 30)")
-    cursor.execute("INSERT INTO users (name, age) VALUES ('Bob', 25)")
-    cursor.execute("INSERT INTO users (name, age) VALUES ('XXCharlie', 35)")
-    connection.commit()
-
-    # --- sequence of operations with basic checks ---
-    users = select_us_numbers(connection)
-    print("initial rows:", users)
-
-    # 1. add phone_type column
-    update_phone_types(connection)
-    users = select_us_numbers(connection)
-    print("after adding phone_type:", users)
-    assert all(len(row) == 4 for row in users), "phone_type column not added"
-
-    # 2. delete records beginning with XX
-    delete_xx_records(connection)
-    users = select_us_numbers(connection)
-    print("after deleting XX rows:", users)
-    assert not any(row[1].startswith('XX') for row in users), "XX records remain"
-
-    # 3. attempt to drop the phone_type column
-    try:
-        drop_phone_table(connection)
-        users = select_us_numbers(connection)
-        print("after dropping phone_type:", users)
-        assert all(len(row) == 3 for row in users), "phone_type column not removed"
-    except Exception as exc:  # sqlite3.OperationalError usually
-        print(f"could not drop column: {exc}")
-
-    connection.close()
-    print("sequence completed")
-
-if __name__ == "__main__":
-    main()
+# Close the connection
+conn.close()
